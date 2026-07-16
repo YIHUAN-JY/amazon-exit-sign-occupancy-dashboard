@@ -6943,6 +6943,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const initialHistory = clone(baseData.history || []);
   let history = loadHistory();
 
+let selectedBenchmark = "competitorAverage";
 const trafficShareIndex = baseData.keywords.reduce((total, kw) => {
     const row = buildKeywordRows(getCurrentSnapshot(), null).find((r) => r.keyword.key === kw.key);
     const ownRate = row ? row.ownRate : 0;
@@ -6957,8 +6958,7 @@ const trafficShareIndex = baseData.keywords.reduce((total, kw) => {
 
     let actions = loadActions();
   let trendRangeDays = 7;
-  let selectedBenchmark = "competitorAverage";
-  let selectedKeywordKey = "";
+    let selectedKeywordKey = "";
   let selectedActionId = null;
 
   initControls();
