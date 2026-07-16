@@ -1,0 +1,45 @@
+name: Daily Dashboard Refresh
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run collector
+        run: node work/occupancy-tracker/refresh-dashboard.mjs
+      - name: Build bundled HTML
+        run: |
+          python3 -c "
+with open('outputs/occupancy-dashboard/index.html') as f: html = f.read()
+with open('outputs/occupancy-dashboard/dashboard.css') as f: css = f.read()
+with open('outputs/occupancy-dashboard/dashboard-data.js') as f: djs = f.read()
+with open('outputs/occupancy-dashboard/auto-collection-report.js') as f: rjs = f.read()
+with open('outputs/occupancy-dashboard/dashboard-app.js') as f: ajs = f.read()
+html = html.replace('<link rel="stylesheet" href="./dashboard.css">', '<style>\n' + css + '\n</style>')
+html = html.replace('<script defer src="./dashboard-data.js"></script>', '<script>\n' + djs + '\n</script>')
+html = html.replace('<script defer src="./auto-collection-report.js"></script>', '<script>\n' + rjs + '\n</script>')
+html = html.replace('<script defer src="./dashboard-app.js"></script>', '<script>\n' + ajs + '\n</script>')
+with open('outputs/occupancy-dashboard/index-bundled.html', 'w') as f: f.write(html)
+with open('index.html', 'w') as f: f.write(html)
+print(f'Bundle: {len(html)} bytes')
+"
+      - name: Commit and push
+        run: |
+          git config user.name "Dashboard Bot"
+          git config user.email "bot@dashboard.local"
+          git add .
+          git diff --staged --quiet || (git commit -m "Auto-refresh 6-07-16 14:58 UTC" && git push origin gh-pages)
