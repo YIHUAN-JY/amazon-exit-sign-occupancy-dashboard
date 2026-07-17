@@ -1,0 +1,50 @@
+name: Daily Dashboard Update
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Collect (Node)
+        id: c1
+        working-directory: work/occupancy-tracker
+        continue-on-error: true
+        run: node refresh-dashboard.mjs
+        env: { TZ: Asia/Shanghai }
+      - name: Collect (Python)
+        id: c2
+        if: steps.c1.outcome == 'failure'
+        working-directory: work/occupancy-tracker
+        run: python refresh-dashboard.py || true
+        env: { TZ: Asia/Shanghai }
+      - name: Retry
+        if: steps.c2.outcome == 'failure'
+        working-directory: work/occupancy-tracker
+        run: sleep 30 && (python refresh-dashboard.py || node refresh-dashboard.mjs)
+        env: { TZ: Asia/Shanghai }
+      - name: Bundle
+        run: python rebundle-v3.py
+      - name: Deploy
+        run: cp outputs/occupancy-dashboard/index-bundled.html outputs/occupancy-dashboard/index.html
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: outputs/occupancy-dashboard
+          destination_dir: .
+          keep_files: false
+          force_orphan: false
+          publish_branch: gh-pages
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Auto update dashboard [skip ci]'
